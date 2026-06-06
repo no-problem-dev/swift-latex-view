@@ -41,9 +41,7 @@ public struct LaTeXView: View {
         if let rendered = renderedMath {
             switch expression.mode {
             case .display:
-                mathImage(rendered)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(style.padding(spacing))
+                ScrollableDisplayMath(image: mathImage(rendered), padding: style.padding(spacing))
             case .inline:
                 mathImage(rendered)
                     .alignmentGuide(.firstTextBaseline) { _ in rendered.size.height - rendered.descent }
@@ -76,6 +74,31 @@ public struct LaTeXView: View {
         Text(expression.latex)
             .font(.system(.body, design: .monospaced))
             .foregroundStyle(style.errorColor(palette))
+    }
+}
+
+/// Display math wider than the container scrolls horizontally instead of
+/// expanding the surrounding layout — the SwiftUI counterpart of KaTeX's
+/// `overflow-x: auto`. Math that fits stays centered, with bounce disabled
+/// so the scroll view is inert.
+private struct ScrollableDisplayMath: View {
+    let image: Image
+    let padding: CGFloat
+
+    @State private var containerWidth: CGFloat = 0
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            image
+                .padding(padding)
+                .frame(minWidth: containerWidth, alignment: .center)
+        }
+        .scrollBounceBehavior(.basedOnSize, axes: [.horizontal])
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            containerWidth = width
+        }
     }
 }
 
