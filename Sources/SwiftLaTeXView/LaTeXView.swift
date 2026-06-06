@@ -78,3 +78,46 @@ public struct LaTeXView: View {
             .foregroundStyle(style.errorColor(palette))
     }
 }
+
+// MARK: - Inline Text API
+
+extension LaTeXView {
+
+    /// Renders inline math as a `Text` segment for text concatenation.
+    ///
+    /// Use this when math must participate in a larger `Text` composition
+    /// (e.g. a Markdown paragraph built from concatenated segments), where
+    /// a `View` cannot be embedded. The image is baseline-aligned with the
+    /// surrounding text via its typeset descent.
+    ///
+    /// - Parameters:
+    ///   - latex: The LaTeX source without delimiters.
+    ///   - fontFamily: The math font. Defaults to Latin Modern.
+    ///   - fontSize: The point size; should match the surrounding text.
+    ///   - color: The text color. Color resolution from a design-system
+    ///     palette is the caller's responsibility.
+    /// - Returns: A `Text` segment, or `nil` if the LaTeX fails to parse.
+    @MainActor
+    public static func inlineText(
+        _ latex: String,
+        fontFamily: MathFontFamily = .latinModern,
+        fontSize: CGFloat = 17,
+        color: Color
+    ) -> Text? {
+        guard let rendered = MathImageRenderer.render(
+            latex: latex,
+            mode: .inline,
+            fontFamily: fontFamily,
+            fontSize: fontSize,
+            color: color
+        ) else {
+            return nil
+        }
+        #if canImport(UIKit)
+        let image = Image(uiImage: rendered.image)
+        #elseif canImport(AppKit)
+        let image = Image(nsImage: rendered.image)
+        #endif
+        return Text(image).baselineOffset(-rendered.descent)
+    }
+}
