@@ -88,19 +88,27 @@ enum MathImageRenderer {
         )
     }
 
+    /// The label draws its display list in CoreGraphics coordinates (y-up)
+    /// and relies on `layer.isGeometryFlipped` for on-screen correction —
+    /// which offscreen rendering ignores. Flip the context manually and
+    /// invoke the label's draw method directly.
     @MainActor
     private static func rasterize(_ label: MTMathUILabel) -> MathPlatformImage {
         #if canImport(UIKit)
         let renderer = UIGraphicsImageRenderer(bounds: label.bounds)
         return renderer.image { rendererContext in
-            label.layer.render(in: rendererContext.cgContext)
+            let context = rendererContext.cgContext
+            context.saveGState()
+            context.translateBy(x: 0, y: label.bounds.height)
+            context.scaleBy(x: 1, y: -1)
+            label.draw(label.bounds)
+            context.restoreGState()
         }
         #elseif canImport(AppKit)
         let image = NSImage(size: label.bounds.size)
-        if let representation = label.bitmapImageRepForCachingDisplay(in: label.bounds) {
-            label.cacheDisplay(in: label.bounds, to: representation)
-            image.addRepresentation(representation)
-        }
+        image.lockFocus()
+        label.draw(label.bounds)
+        image.unlockFocus()
         return image
         #endif
     }
