@@ -21,8 +21,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/mgriebling/SwiftMath.git", .upToNextMajor(from: "1.7.0")),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", .upToNextMajor(from: "1.0.0")),
-        // TODO: swift-visual-testing の Xcode 26.4 対応リリース後に URL 依存へ戻す
-        .package(path: "../swift-visual-testing"),
+        .package(url: "https://github.com/no-problem-dev/swift-visual-testing.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/apple/swift-docc-plugin.git", .upToNextMajor(from: "1.4.0"))
     ],
     targets: [
