@@ -15,7 +15,7 @@ extension MathExpression {
     /// or truncated LaTeX.
     public func validate() -> MathParseError? {
         var error: NSError?
-        let mathList = MTMathListBuilder.build(fromString: latex, error: &error)
+        let mathList = MTMathListBuilder.build(fromString: normalizedLatex, error: &error)
         if let error {
             return MathParseError(message: error.localizedDescription)
         }

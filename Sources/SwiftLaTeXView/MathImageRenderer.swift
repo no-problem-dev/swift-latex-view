@@ -41,8 +41,9 @@ enum MathImageRenderer {
         color: Color
     ) -> RenderedMath? {
         var error: NSError?
+        let normalized = MathExpression(latex, mode: mode).normalizedLatex
         guard
-            let mathList = MTMathListBuilder.build(fromString: latex, error: &error),
+            let mathList = MTMathListBuilder.build(fromString: normalized, error: &error),
             error == nil
         else {
             return nil
