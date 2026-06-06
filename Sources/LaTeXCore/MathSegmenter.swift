@@ -188,11 +188,14 @@ private struct Scanner {
                 continue
             }
             if c == "$" {
+                // Pandoc rule: content may not contain an unescaped `$`,
+                // so the first one found either closes the math or fails it.
                 let validClose = !chars[j - 1].isWhitespace && !isDigit(at: j + 1)
                 if validClose && j > contentStart {
                     emitMath(String(chars[contentStart..<j]), mode: .inline, from: start, to: j + 1)
                     return
                 }
+                break
             }
             j += 1
         }
