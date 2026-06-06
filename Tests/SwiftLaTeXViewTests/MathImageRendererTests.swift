@@ -53,6 +53,24 @@ struct MathImageRendererTests {
         #expect(height(.display) > height(.inline))
     }
 
+    @Test("Short expressions are not clipped by the engine's height clamp")
+    func shortExpressionClampRegression() {
+        // A single lowercase letter always falls into the engine's
+        // fontSize/2 height clamp. A negative descent means the glyph's
+        // tail is shifted below the frame and clipped (detached-fragment
+        // artifact). The frame must absorb the clamp instead.
+        let rendered = MathImageRenderer.render(
+            latex: "n",
+            mode: .inline,
+            fontFamily: .latinModern,
+            fontSize: 17,
+            color: .black
+        )
+
+        #expect((rendered?.descent ?? -1) >= 0)
+        #expect((rendered?.size.height ?? 0) >= 17 / 2)
+    }
+
     @Test("Renderer reports a descent for baseline alignment")
     func descentForBaseline() {
         let rendered = MathImageRenderer.render(

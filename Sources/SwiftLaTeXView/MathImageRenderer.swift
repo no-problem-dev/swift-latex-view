@@ -61,7 +61,12 @@ enum MathImageRenderer {
         #else
         let fittedSize = label.fittingSize
         #endif
-        let size = CGSize(width: ceil(fittedSize.width), height: ceil(fittedSize.height))
+        // The label's layout clamps content height to fontSize/2 and can
+        // shift glyphs below the frame (negative baseline), clipping
+        // descender tails of short expressions like a single `n`. Give the
+        // frame the clamped height so nothing is cut off.
+        let frameHeight = max(ceil(fittedSize.height), ceil(fontSize / 2) + 2)
+        let size = CGSize(width: ceil(fittedSize.width), height: frameHeight)
         guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else {
             return nil
         }
