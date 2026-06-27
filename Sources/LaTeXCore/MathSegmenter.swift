@@ -37,14 +37,26 @@ public struct MathSegmenter: Sendable {
         /// closing delimiter may not have arrived yet.
         public var completeUnterminated: Bool
 
+        /// Creates segmenter options.
+        ///
+        /// - Parameters:
+        ///   - singleDollar: Whether `$...$` is recognized as inline math.
+        ///     Defaults to `true`.
+        ///   - completeUnterminated: Whether an unterminated delimiter at end
+        ///     of input is completed as math. Defaults to `false`. Enable for
+        ///     streaming LLM output.
         public init(singleDollar: Bool = true, completeUnterminated: Bool = false) {
             self.singleDollar = singleDollar
             self.completeUnterminated = completeUnterminated
         }
     }
 
+    /// The options used by this segmenter.
     public let options: Options
 
+    /// Creates a segmenter with the given options.
+    ///
+    /// - Parameter options: Parsing options. Defaults to ``Options/init(singleDollar:completeUnterminated:)``.
     public init(options: Options = Options()) {
         self.options = options
     }

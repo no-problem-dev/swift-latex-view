@@ -23,16 +23,30 @@ import LaTeXCore
 /// monospaced font with the style's error color.
 public struct LaTeXView: View {
 
+    /// The math expression being rendered.
     public let expression: MathExpression
 
     @Environment(\.mathStyle) private var style
     @Environment(\.colorPalette) private var palette
     @Environment(\.spacingScale) private var spacing
 
+    /// Creates a view from a pre-built ``MathExpression``.
+    ///
+    /// Use this when you already hold an expression — for example one
+    /// produced by ``MathSegmenter`` while rendering mixed text and math.
+    ///
+    /// - Parameter expression: The expression to render.
     public init(_ expression: MathExpression) {
         self.expression = expression
     }
 
+    /// Creates a view from a LaTeX string.
+    ///
+    /// - Parameters:
+    ///   - latex: The LaTeX source **without** surrounding delimiters — e.g.
+    ///     `#"\frac{1}{2}"#`, not `"$\frac{1}{2}$"`. Passing delimiters
+    ///     renders them as literal characters.
+    ///   - mode: The layout mode; defaults to ``MathMode/display``.
     public init(_ latex: String, mode: MathMode = .display) {
         self.expression = MathExpression(latex, mode: mode)
     }
@@ -112,6 +126,11 @@ extension LaTeXView {
     /// (e.g. a Markdown paragraph built from concatenated segments), where
     /// a `View` cannot be embedded. The image is baseline-aligned with the
     /// surrounding text via its typeset descent.
+    ///
+    /// Unlike the ``LaTeXView`` initializers, this method is
+    /// environment-independent: it does **not** read the ambient
+    /// ``SwiftUICore/EnvironmentValues/mathStyle`` or color palette. Pass
+    /// `fontFamily`, `fontSize`, and `color` that match the surrounding text.
     ///
     /// - Parameters:
     ///   - latex: The LaTeX source without delimiters.

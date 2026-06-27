@@ -17,6 +17,14 @@ public struct MathExpression: Sendable, Equatable, Hashable {
     /// The layout mode.
     public let mode: MathMode
 
+    /// Creates a math expression.
+    ///
+    /// - Parameters:
+    ///   - latex: The LaTeX source **without** surrounding delimiters — e.g.
+    ///     `#"\frac{1}{2}"#`, not `"$\frac{1}{2}$"`. Passing delimiters
+    ///     renders them as literal characters. When detecting math inside
+    ///     prose, use ``MathSegmenter`` instead, which strips delimiters.
+    ///   - mode: The layout mode; defaults to ``MathMode/display``.
     public init(_ latex: String, mode: MathMode = .display) {
         self.latex = latex
         self.mode = mode
