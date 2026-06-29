@@ -3,13 +3,12 @@ import DesignSystem
 
 // MARK: - MathStyle Protocol
 
-/// A protocol that defines the visual styling for math expressions.
+/// 数式のスタイルを定義するプロトコル。
 ///
-/// Implement this protocol to customize how ``LaTeXView`` renders math.
-/// All requirements have defaults, so a custom style only overrides
-/// what it needs.
+/// このプロトコルを実装して ``LaTeXView`` の描画をカスタマイズする。
+/// 全要件にはデフォルト実装があるため、変更が必要なプロパティのみオーバーライドすればよい。
 ///
-/// ## Example
+/// ## 使用例
 ///
 /// ```swift
 /// struct AccentMathStyle: MathStyle {
@@ -25,30 +24,28 @@ import DesignSystem
 /// ```
 public protocol MathStyle: Sendable {
 
-    /// The math font used for typesetting.
+    /// 組版に使う数式フォント。
     var fontFamily: MathFontFamily { get }
 
-    /// The point size for display (block) math.
+    /// ディスプレイ（ブロック）数式のポイントサイズ。
     var displayFontSize: CGFloat { get }
 
-    /// The point size for inline math. Should match the surrounding
-    /// body text size.
+    /// インライン数式のポイントサイズ。周囲の本文テキストに合わせること。
     var inlineFontSize: CGFloat { get }
 
-    /// The color of the rendered expression.
+    /// 描画する数式の色。
     ///
-    /// - Parameter palette: The current color palette from the environment.
+    /// - Parameter palette: 環境から取得した現在のカラーパレット。
     func textColor(_ palette: any ColorPalette) -> Color
 
-    /// The color used when LaTeX fails to parse and the raw source is
-    /// shown instead.
+    /// LaTeX のパースに失敗して生ソースを表示するときの色。
     ///
-    /// - Parameter palette: The current color palette from the environment.
+    /// - Parameter palette: 環境から取得した現在のカラーパレット。
     func errorColor(_ palette: any ColorPalette) -> Color
 
-    /// The padding around display math blocks.
+    /// ディスプレイ数式ブロックの余白。
     ///
-    /// - Parameter spacing: The current spacing scale from the environment.
+    /// - Parameter spacing: 環境から取得した現在のスペーシングスケール。
     func padding(_ spacing: any SpacingScale) -> CGFloat
 }
 
@@ -77,8 +74,7 @@ extension MathStyle {
 
 // MARK: - DefaultMathStyle
 
-/// The default math style: Latin Modern, on-surface color,
-/// standard body-text sizing.
+/// デフォルトの数式スタイル。Latin Modern フォント・オンサーフェイスカラー・標準本文サイズ。
 public struct DefaultMathStyle: MathStyle {
     public init() {}
 }
@@ -91,9 +87,9 @@ private struct MathStyleKey: EnvironmentKey {
 
 extension EnvironmentValues {
 
-    /// The style used for rendering math expressions.
+    /// 数式描画に使用するスタイル。
     ///
-    /// Use the ``SwiftUICore/View/mathStyle(_:)`` modifier to set this value.
+    /// 値の設定には ``SwiftUICore/View/mathStyle(_:)`` モディファイアを使う。
     public var mathStyle: any MathStyle {
         get { self[MathStyleKey.self] }
         set { self[MathStyleKey.self] = newValue }
@@ -104,10 +100,10 @@ extension EnvironmentValues {
 
 extension View {
 
-    /// Sets a custom math style for this view hierarchy.
+    /// このビュー階層に数式スタイルを設定する。
     ///
-    /// - Parameter style: The math style to use.
-    /// - Returns: A view with the math style applied.
+    /// - Parameter style: 適用する数式スタイル。
+    /// - Returns: 数式スタイルが適用されたビュー。
     public func mathStyle(_ style: some MathStyle) -> some View {
         environment(\.mathStyle, style)
     }

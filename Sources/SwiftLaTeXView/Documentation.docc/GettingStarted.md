@@ -1,22 +1,22 @@
-# Getting Started with SwiftLaTeXView
+# SwiftLaTeXView をはじめる
 
-Add LaTeX math rendering to a SwiftUI app.
+SwiftUI アプリに LaTeX 数式レンダリングを追加する。
 
-## Installation
+## インストール
 
-Add the package to your `Package.swift`:
+`Package.swift` に以下を追加する:
 
 ```swift
 dependencies: [
     .package(
         url: "https://github.com/no-problem-dev/swift-latex-view.git",
-        .upToNextMajor(from: "0.1.0")
+        .upToNextMajor(from: "0.1.1")
     )
 ]
 ```
 
-Then add `SwiftLaTeXView` to your target. Importing `SwiftLaTeXView` also
-makes the `LaTeXCore` model types available — no separate import required:
+ターゲットに `SwiftLaTeXView` を追加する。`SwiftLaTeXView` を import すると
+`LaTeXCore` のモデル型も自動的に利用可能になるため、追加 import は不要:
 
 ```swift
 .target(
@@ -27,33 +27,32 @@ makes the `LaTeXCore` model types available — no separate import required:
 )
 ```
 
-## Setup
+## セットアップ
 
-Import the module at the top of your Swift file:
+Swift ファイルの先頭で import する:
 
 ```swift
 import SwiftUI
 import SwiftLaTeXView
 ```
 
-`SwiftLaTeXView` requires iOS 17+ or macOS 14+. No additional font registration
-or configuration is needed — all math fonts are bundled with the package.
+`SwiftLaTeXView` は iOS 17 以上または macOS 14 以上を必要とする。
+追加のフォント登録や設定は不要 — 全数式フォントはパッケージに同梱されている。
 
-## Basic Usage
+## 基本的な使い方
 
-### Display math
+### ディスプレイ数式
 
-Display (block) mode renders the expression centered and full-width. If it is
-wider than the container, it scrolls horizontally without affecting the layout:
+ディスプレイ（ブロック）モードは数式を中央揃えで全幅に描画する。
+コンテナより幅広になると、レイアウトを崩さずに横スクロールする:
 
 ```swift
 LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
 ```
 
-### Inline math
+### インライン数式
 
-Inline mode aligns the expression on the text baseline so it flows naturally
-inside `HStack(alignment: .firstTextBaseline)`:
+インラインモードは `HStack(alignment: .firstTextBaseline)` 内でテキストのベースラインに揃える:
 
 ```swift
 HStack(alignment: .firstTextBaseline) {
@@ -62,23 +61,28 @@ HStack(alignment: .firstTextBaseline) {
 }
 ```
 
-### Text concatenation
+### テキスト連結
 
-When math must participate in a `Text` composition (for example, a Markdown
-paragraph built from concatenated segments), use the static `inlineText` helper:
+`Text` コンポジション（複数セグメントを連結した Markdown 段落など）に数式を埋め込む場合は
+静的ヘルパー `inlineText` を使用する。`@MainActor` 修飾のため View の `body` など
+メインアクター上で呼び出す:
 
 ```swift
-let segment: Text = LaTeXView.inlineText(
-    #"\alpha"#,
-    fontSize: 17,
-    color: .primary
-) ?? Text("α")
+var body: some View {
+    // @MainActor コンテキスト（View body 等）で呼び出す
+    let formula: Text = LaTeXView.inlineText(
+        #"\alpha"#,
+        fontSize: 17,
+        color: .primary
+    ) ?? Text("α")
+    return Text("係数 ") + formula
+}
 ```
 
-## Customising the Style
+## スタイルのカスタマイズ
 
-Create a type conforming to `MathStyle` and apply it with `.mathStyle(_:)`.
-All requirements have defaults — override only what you need:
+`MathStyle` に準拠した型を作成し、`.mathStyle(_:)` で適用する。
+全要件にはデフォルト実装があるため、必要なプロパティのみオーバーライドすればよい:
 
 ```swift
 struct BigDisplayStyle: MathStyle {
@@ -94,12 +98,12 @@ LaTeXView(#"\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}"#)
     .mathStyle(BigDisplayStyle())
 ```
 
-Available font families are listed in ``MathFontFamily``.
+利用可能なフォントファミリーの一覧は ``MathFontFamily`` を参照。
 
-## Rendering from Segmented Text
+## セグメント済みテキストからの描画
 
-Combine `MathSegmenter` (re-exported from `LaTeXCore`) with `LaTeXView` to
-render a mixed text/math string:
+`LaTeXCore` から再エクスポートされた `MathSegmenter` と `LaTeXView` を組み合わせて、
+テキストと数式が混在する文字列を描画する:
 
 ```swift
 let input = "Energy: $$E = mc^2$$ — Einstein."

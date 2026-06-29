@@ -1,18 +1,17 @@
 import Foundation
 internal import SwiftMath
 
-/// An error produced when LaTeX source cannot be parsed as math.
+/// LaTeX ソースの解析に失敗したときのエラー。
 public struct MathParseError: Error, Sendable, Equatable, Hashable {
-    /// A human-readable description of the parse failure.
+    /// 解析失敗の内容を人間が読める形で表した文字列。
     public let message: String
 }
 
 extension MathExpression {
-    /// Parses the LaTeX source and returns the failure, if any.
+    /// LaTeX ソースを解析し、失敗があればエラーを返す。
     ///
-    /// Use this to decide between rendering math and falling back to the
-    /// raw source — important for LLM output, which can contain malformed
-    /// or truncated LaTeX.
+    /// LLM 出力は不正または不完全な LaTeX を含む場合がある。
+    /// 描画前にこのメソッドでパース可否を確認し、失敗時は生ソース表示にフォールバックできる。
     public func validate() -> MathParseError? {
         var error: NSError?
         let mathList = MTMathListBuilder.build(fromString: normalizedLatex, error: &error)

@@ -9,27 +9,25 @@ import AppKit
 typealias MathPlatformImage = NSImage
 #endif
 
-/// A typeset math expression with the metrics needed for layout.
+/// レイアウトに必要なメトリクスを持つ、タイプセット済み数式。
 struct RenderedMath {
     let image: MathPlatformImage
     let size: CGSize
-    /// Distance from the baseline to the top of the image.
+    /// ベースラインから画像上端までの距離。
     let ascent: CGFloat
-    /// Distance from the baseline to the bottom of the image.
-    /// Used to align inline math with surrounding text baselines.
+    /// ベースラインから画像下端までの距離。
+    /// インライン数式を周囲テキストのベースラインに揃えるために使用する。
     let descent: CGFloat
 }
 
-/// Bridges LaTeX source to a rasterized image via the typesetting engine.
+/// LaTeX ソースを組版エンジン経由でラスタライズした画像に変換するブリッジ。
 ///
-/// The engine (SwiftMath) stays an implementation detail: callers see
-/// only ``RenderedMath``.
+/// エンジン（SwiftMath）は実装詳細として隠蔽する。呼び出し側には ``RenderedMath`` のみを公開する。
 ///
-/// Implementation note: SwiftMath 1.7.x keeps `MTTypesetter` internal,
-/// so the only public typesetting route is `MTMathUILabel`, whose
-/// `layoutSubviews()`/`layout()` and `displayList` are public. The label
-/// is used off-screen as a typesetter and rasterized; it is never
-/// attached to a window. This makes rendering main-actor bound.
+/// 実装メモ: SwiftMath 1.7.x は `MTTypesetter` を internal にしているため、
+/// 唯一の公開組版ルートは `MTMathUILabel` であり、その `layoutSubviews()`/`layout()` と
+/// `displayList` が public である。このラベルをオフスクリーンで組版器として使用してラスタライズする。
+/// ウィンドウには一切アタッチしないため、描画は MainActor に束縛される。
 enum MathImageRenderer {
 
     @MainActor
@@ -94,10 +92,9 @@ enum MathImageRenderer {
         )
     }
 
-    /// The label draws its display list in CoreGraphics coordinates (y-up)
-    /// and relies on `layer.isGeometryFlipped` for on-screen correction —
-    /// which offscreen rendering ignores. Flip the context manually and
-    /// invoke the label's draw method directly.
+    /// ラベルは表示リストを CoreGraphics 座標系（y 上向き）で描画し、オンスクリーン補正を
+    /// `layer.isGeometryFlipped` に依存する。オフスクリーン描画ではこのフリップが効かないため、
+    /// コンテキストを手動でフリップしてラベルの描画メソッドを直接呼び出す。
     @MainActor
     private static func rasterize(_ label: MTMathUILabel) -> MathPlatformImage {
         #if canImport(UIKit)

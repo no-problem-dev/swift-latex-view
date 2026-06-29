@@ -1,70 +1,65 @@
 import Foundation
 
-/// A piece of text produced by ``MathSegmenter``.
+/// ``MathSegmenter`` が生成するテキストの断片。
 public enum MathSegment: Sendable, Equatable {
-    /// Plain text, preserved exactly as it appeared in the source.
+    /// ソースそのままのプレーンテキスト。
     case text(String)
-    /// A math expression with its delimiters stripped.
+    /// デリミタを除いた数式。
     case math(MathExpression)
 }
 
-/// Splits plain text into text and math segments.
+/// プレーンテキストをテキストセグメントと数式セグメントに分割する。
 ///
-/// Recognizes the delimiter styles emitted by major LLMs:
-/// - `$$...$$` and `\[...\]` — display math (multiline allowed)
-/// - `\(...\)` — inline math
-/// - `$...$` — inline math, guarded by Pandoc rules to avoid
-///   currency false positives (see ``Options/singleDollar``)
+/// 主要 LLM が出力するデリミタ記法を認識する:
+/// - `$$...$$` と `\[...\]` — ディスプレイ数式（複数行可）
+/// - `\(...\)` — インライン数式
+/// - `$...$` — インライン数式。誤検出防止のため Pandoc 規則で判定
+///   （``Options/singleDollar`` を参照）
 ///
-/// Markdown code constructs (fenced code blocks and inline code spans)
-/// are skipped, so the segmenter can run on raw Markdown source before
-/// Markdown parsing. This matters because `\(...\)` cannot be recovered
-/// after Markdown escape processing.
+/// Markdown のコードブロックとインラインコードスパンはスキップするため、
+/// Markdown パース前の生テキストに対して実行できる。
+/// `\(...\)` は Markdown のエスケープ処理後には復元できないため、この順番が重要。
 public struct MathSegmenter: Sendable {
 
     public struct Options: Sendable, Equatable {
-        /// Whether `$...$` is recognized as inline math.
+        /// `$...$` をインライン数式として認識するかどうか。
         ///
-        /// Detection follows Pandoc rules: the opening `$` must be
-        /// immediately followed by a non-space character, the closing `$`
-        /// immediately preceded by one, and the closing `$` must not be
-        /// immediately followed by a digit. The expression must not span
-        /// multiple lines.
+        /// 検出は Pandoc 規則に従う: 開き `$` の直後に非空白文字が来なければならず、
+        /// 閉じ `$` の直前も非空白でなければならない。また、閉じ `$` の直後が数字であってはならず、
+        /// 数式は複数行にまたがれない。
         public var singleDollar: Bool
 
-        /// Whether an unterminated delimiter at end of input is completed
-        /// as math. Enable when rendering streaming LLM output, where the
-        /// closing delimiter may not have arrived yet.
+        /// 入力末尾の未終端デリミタを数式として補完するかどうか。
+        /// ストリーミング LLM 出力で、閉じデリミタがまだ届いていない場合に有効化する。
         public var completeUnterminated: Bool
 
-        /// Creates segmenter options.
+        /// セグメンターのオプションを生成する。
         ///
         /// - Parameters:
-        ///   - singleDollar: Whether `$...$` is recognized as inline math.
-        ///     Defaults to `true`.
-        ///   - completeUnterminated: Whether an unterminated delimiter at end
-        ///     of input is completed as math. Defaults to `false`. Enable for
-        ///     streaming LLM output.
+        ///   - singleDollar: `$...$` をインライン数式として認識するかどうか。
+        ///     デフォルトは `true`。
+        ///   - completeUnterminated: 入力末尾の未終端デリミタを数式として補完するかどうか。
+        ///     デフォルトは `false`。ストリーミング LLM 出力の場合は `true` にする。
         public init(singleDollar: Bool = true, completeUnterminated: Bool = false) {
             self.singleDollar = singleDollar
             self.completeUnterminated = completeUnterminated
         }
     }
 
-    /// The options used by this segmenter.
+    /// このセグメンターが使用するオプション。
     public let options: Options
 
-    /// Creates a segmenter with the given options.
+    /// 指定したオプションでセグメンターを生成する。
     ///
-    /// - Parameter options: Parsing options. Defaults to ``Options/init(singleDollar:completeUnterminated:)``.
+    /// - Parameter options: パースオプション。デフォルトは ``Options/init(singleDollar:completeUnterminated:)``。
     public init(options: Options = Options()) {
         self.options = options
     }
 
-    /// Splits `text` into alternating text and math segments.
+    /// `text` をテキストセグメントと数式セグメントに分割する。
     ///
-    /// Text outside math delimiters is preserved exactly. Delimiters that
-    /// do not form a valid math expression remain part of the text.
+    /// 数式デリミタの外側のテキストはそのまま保持する。
+    /// 有効な数式を形成しないデリミタはテキストの一部として残る。
     public func segments(in text: String) -> [MathSegment] {
         var scanner = Scanner(chars: Array(text), options: options)
         return scanner.run()
@@ -307,8 +302,7 @@ private struct Scanner {
         return true
     }
 
-    /// Advances `i` past the next newline and returns the index of the
-    /// following line's first character, or nil if no newline remains.
+    /// `i` を次の改行の直後まで進め、続く行の先頭インデックスを返す。改行が残っていない場合は `nil`。
     private mutating func indexAfterNextNewline() -> Int? {
         while i < chars.count {
             if chars[i] == "\n" {
