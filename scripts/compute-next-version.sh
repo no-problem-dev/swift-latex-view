@@ -8,10 +8,15 @@
 #   出力  : bump=<major|minor|patch> current=<x.y.z> next=<x.y.z> removed=<n> added=<n>
 #
 # 判定（強い順に評価して最も強いものを採る）:
-#   public dependency が major を上げた         → major   ← シンボル差分には映らない
-#   public シンボルの削除・シグネチャ変更あり   → major
-#   追加のみ                                    → minor
-#   どちらも無い                                → patch
+#   public dependency が世代を上げた            → 破壊的   ← シンボル差分には映らない
+#   public シンボルの削除・シグネチャ変更あり   → 破壊的
+#   追加のみ                                    → 追加
+#   どちらも無い                                → 無変化
+#
+# 版への写し方は 1.0.0 を境に変わる（SemVer 4 項: 0.y.z の互換性は保証されない）:
+#   1.x 以降 : 破壊的 → major / 追加 → minor / 無変化 → patch
+#   0.x      : 破壊的 → minor / それ以外 → patch
+#              （0.x で major を繰り上げると「安定版を出した」という別の意味になるため）
 #
 # public dependency とは、その型が自分の public シグネチャに露出している依存のこと。
 # semver.org の FAQ は「公開 API を変えずに依存を更新するのは互換」と明言しており、
@@ -38,7 +43,7 @@
 #   **依存を上げるたびに API が変わったように見える**。voice-input の実測では
 #   1738 件 → 50 件 と 35 倍違った。測っているものが自分の API ではなくなる。
 
-set -euo pipefail
+set -eo pipefail
 
 REPO="$(pwd)"
 BASELINE=""
@@ -135,7 +140,8 @@ tr 'A-Z' 'a-z' < "$WORK/leaked" | sort -u > "$WORK/leaked.lc"
 
 PUBLIC_DEP_BREAK=""
 while read -r repo_name base_major; do
-  [ -z "$repo_name" ] && continue
+  [ -z "${repo_name:-}" ] && continue
+  [ -z "${base_major:-}" ] && continue
   head_major=$(awk -v r="$repo_name" '$1==r {print $2}' "$WORK/dep.head" | head -1)
   [ -z "$head_major" ] && continue
   [ "$base_major" = "$head_major" ] && continue
@@ -150,18 +156,39 @@ REST="${CURRENT#*.}"
 MINOR="${REST%%.*}"
 PATCH="${CURRENT##*.}"
 
+# 0.x は minor が破壊的軸（SemVer 4 項: 0.y.z の互換性は保証されない）。
+# 1.0.0 未満で major を繰り上げると「安定版を出した」という別の意味になってしまうため、
+# 破壊的変更は minor、非破壊は patch に写す。oss-doctor の dep-generation-gap と同じ規則。
+if [ "$REMOVED" -gt 0 ] || [ -n "$PUBLIC_DEP_BREAK" ]; then
+  BREAKING=true
+else
+  BREAKING=false
+fi
+
 if [ -n "$PUBLIC_DEP_BREAK" ]; then
-  BUMP=major; NEXT="$((MAJOR + 1)).0.0"
   REASON="public dependency の世代変化:$PUBLIC_DEP_BREAK"
 elif [ "$REMOVED" -gt 0 ]; then
-  BUMP=major; NEXT="$((MAJOR + 1)).0.0"
   REASON="public シンボルの削除・変更 ${REMOVED} 件"
 elif [ "$ADDED" -gt 0 ]; then
-  BUMP=minor; NEXT="${MAJOR}.$((MINOR + 1)).0"
   REASON="public シンボルの追加 ${ADDED} 件"
 else
-  BUMP=patch; NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
   REASON="公開 API に変化なし"
+fi
+
+if [ "$MAJOR" -eq 0 ]; then
+  if [ "$BREAKING" = true ]; then
+    BUMP=minor; NEXT="0.$((MINOR + 1)).0"
+  else
+    BUMP=patch; NEXT="0.${MINOR}.$((PATCH + 1))"
+  fi
+else
+  if [ "$BREAKING" = true ]; then
+    BUMP=major; NEXT="$((MAJOR + 1)).0.0"
+  elif [ "$ADDED" -gt 0 ]; then
+    BUMP=minor; NEXT="${MAJOR}.$((MINOR + 1)).0"
+  else
+    BUMP=patch; NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+  fi
 fi
 
 echo "bump=$BUMP current=$CURRENT next=$NEXT removed=$REMOVED added=$ADDED"
