@@ -125,7 +125,13 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- CHANGELOG.md README.md README.ja.md README_EN.md 2>/dev/null || true
+          # 存在するファイルだけを渡す。無いパスを混ぜると git add ごと失敗し、
+          # 何もステージされないまま commit が「変更なし」で落ちる。
+          FILES=(CHANGELOG.md)
+          for f in README.md README.ja.md README_EN.md; do
+            [ -f "$f" ] && FILES+=("$f")
+          done
+          git add -- "${FILES[@]}"
           git commit -m "release: ${VERSION}（bump=${{ steps.version.outputs.bump }} / API 削除 ${{ steps.version.outputs.removed }}・追加 ${{ steps.version.outputs.added }}）"
           git push origin HEAD:main
         shell: bash
