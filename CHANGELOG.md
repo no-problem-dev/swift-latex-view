@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 
+
 ### 変更
 
 - swift-design-system のピンを 3.0.0 へ繰り上げた。DesignSystem の型は本パッケージの

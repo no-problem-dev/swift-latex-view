@@ -78,7 +78,7 @@ LaTeXView(#"e^{i\pi} + 1 = 0"#)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/no-problem-dev/swift-latex-view.git", from: "0.1.1")
+    .package(url: "https://github.com/no-problem-dev/swift-latex-view.git", from: "")
 ]
 ```
 
