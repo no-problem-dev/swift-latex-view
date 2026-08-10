@@ -1,0 +1,147 @@
+# SSOT: swift-oss-doctor/templates/workflows/release-on-main.yml
+#
+# CHANGELOG 駆動リリース。main の CHANGELOG.md の `## [Unreleased]` に中身があれば、
+# 版を計算してタグとリリースを作る。リリースブランチも手動タグも要らない（main 直運用が前提）。
+#
+# **人間は版番号を書かない。** 書くのは「何が変わったか」の散文だけ。
+# 版は公開 API の実差分から計算され、タグ・Release・CHANGELOG の見出し・README の install 行は
+# すべてその派生物として機械が書く。判断が残る限り必ず間違えるので、判断の余地を無くす。
+#
+# なぜ CHANGELOG を起点にするか:
+#   以前は「タグを手で打つ → release-on-tag が拾う」だったため、CHANGELOG を更新しなくても
+#   リリースはできてしまい、24 リポ中 17 で CHANGELOG が実タグから乖離した（ui-routing は
+#   タグ 2.1.1 に対し CHANGELOG 1.0.12）。何も依存していないファイルは必ず腐る。
+#   CHANGELOG をリリースの起点にすると、書き忘れ = リリースされない、になるので腐りようがない。
+#
+# 落とし穴（重要）:
+#   GITHUB_TOKEN で push したタグは他のワークフローを起動しない（GitHub の再帰防止）。
+#   そのため build/test/release をこのワークフロー内で完結させている。
+#   release-on-tag.yml は手動タグ用の逃げ道として残してあり、二重リリースにはならない。
+#
+# 手編集せず distribute-workflows.sh で再配布する。
+name: Release from CHANGELOG
+
+on:
+  push:
+    branches: [main]
+    paths: ['CHANGELOG.md']
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: macos-15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Is there anything to release?
+        id: pending
+        run: |
+          # 人間が書くのは `## [Unreleased]` の下の中身だけ。版番号は書かない。
+          if ! grep -qiE '^## \[?(Unreleased|未リリース)\]?' CHANGELOG.md; then
+            echo "未リリース節が無い。何もしない。"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          BODY=$(awk '/^## \[?([Uu]nreleased|未リリース)\]?/{flag=1; next} /^## /{flag=0} flag' CHANGELOG.md \
+                 | grep -vE '^\s*$' || true)
+          if [ -z "$BODY" ]; then
+            echo "未リリース節が空。何もしない（冪等）。"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode
+        if: steps.pending.outputs.skip == 'false'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      # 出荷物を検証するワークフローなので、依存はキャッシュから復元せず解決し直す。
+      # 古い依存での green は「出荷物が検証されていない」ことを意味する。
+      - name: Resolve dependencies (fresh)
+        if: steps.pending.outputs.skip == 'false'
+        run: swift package update
+
+      - name: Build
+        if: steps.pending.outputs.skip == 'false'
+        run: swift build
+
+      - name: Run Tests
+        if: steps.pending.outputs.skip == 'false'
+        run: swift test
+
+      # 版は人間が決めない。公開 API の実差分から計算する。
+      #
+      # 2026-08-10 の実測: 29 回の major のうち 4 回は「依存のピンを上げただけ」で
+      # 自分の公開 API は無変更だった（voice-input 2.0.0 は Package.swift 1 行のみ）。
+      # 実測すると削除 0 / 追加 0 = patch で、正しくは 1.1.2 だった。
+      # 被依存の多いパッケージの major が消費者へ連鎖し dep-generation-gap を量産していたので、
+      # 判断の余地そのものを無くす。
+      #
+      # 反対側も検証済み: statable 1.0.2 → 2.0.0 は removed=57 added=45 で major と出る。
+      # 常に patch と言う機構ではない。
+      - name: Compute the version from the API diff
+        if: steps.pending.outputs.skip == 'false'
+        id: version
+        run: |
+          RESULT=$(scripts/compute-next-version.sh)
+          echo "$RESULT"
+          echo "$RESULT" | tr ' ' '\n' | grep -E '^(bump|next|removed|added)=' >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      # 計算した版を CHANGELOG に刻み、README の install 行を同期する。
+      # 人間が版を書く場所はどこにも無い。
+      #
+      # README の from: は major の基準点だけを持つ。from: "X" は「次の major 未満」を
+      # 意味するので、major さえ合っていればその系列の全期間で正しく、patch ごとの更新は要らない。
+      - name: Stamp the version and sync the install snippet
+        if: steps.pending.outputs.skip == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.next }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          BASE="${VERSION%%.*}.0.0"
+          TODAY=$(date -u +%Y-%m-%d)
+
+          # `## [Unreleased]` を `## [X.Y.Z] - YYYY-MM-DD` に置き換え、空の未リリース節を上に足す。
+          perl -0pi -e '
+            my ($v, $d) = ($ENV{VERSION}, $ENV{TODAY});
+            s{^\#\#\s*\[?(?:Unreleased|unreleased|未リリース)\]?.*$}
+             {## [Unreleased]\n\n## [$v] - $d}m;
+          ' CHANGELOG.md
+
+          for f in README.md README.ja.md README_EN.md; do
+            [ -f "$f" ] || continue
+            perl -0pi -e '
+              my ($repo, $base) = ($ENV{REPO}, $ENV{BASE});
+              s{(\.package\(\s*url:\s*"[^"]*\Q$repo\E(?:\.git)?"[^)]*?from:\s*")[^"]+(")}{$1$base$2}g;
+            ' "$f"
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- CHANGELOG.md README.md README.ja.md README_EN.md 2>/dev/null || true
+          git commit -m "release: ${VERSION}（bump=${{ steps.version.outputs.bump }} / API 削除 ${{ steps.version.outputs.removed }}・追加 ${{ steps.version.outputs.added }}）"
+          git push origin HEAD:main
+        shell: bash
+
+      - name: Tag and release
+        if: steps.pending.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          # CHANGELOG の該当セクションをそのままリリースノートにする。
+          awk "/^## \[?${VERSION}/{flag=1; next} /^## \[?[0-9]/{flag=0} flag" CHANGELOG.md > /tmp/notes.md
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          if [ -s /tmp/notes.md ]; then
+            gh release create "$VERSION" --title "$VERSION" --notes-file /tmp/notes.md
+          else
+            gh release create "$VERSION" --title "$VERSION" --generate-notes
+          fi
