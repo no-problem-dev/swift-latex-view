@@ -6,6 +6,13 @@ public struct MathParseError: Error, Sendable, Equatable, Hashable {
     /// A human-readable account of what the parser objected to. Suitable for a log or a
     /// developer-facing diagnostic, not for an end user.
     public let message: String
+
+    /// Creates an error.
+    ///
+    /// - Parameter message: What the parser objected to.
+    public init(message: String) {
+        self.message = message
+    }
 }
 
 extension MathExpression {

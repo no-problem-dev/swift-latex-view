@@ -38,14 +38,15 @@ enum MathImageRenderer {
         fontFamily: MathFontFamily,
         fontSize: CGFloat,
         color: Color
-    ) -> RenderedMath? {
+    ) throws(MathRenderFailure) -> RenderedMath {
         var error: NSError?
         let normalized = MathExpression(latex, mode: mode).normalizedLatex
         guard
             let mathList = MTMathListBuilder.build(fromString: normalized, error: &error),
             error == nil
         else {
-            return nil
+            let message = error?.localizedDescription ?? "Unable to parse expression"
+            throw MathRenderFailure(reason: .parseFailed(MathParseError(message: message)), source: normalized)
         }
 
         let label = MTMathUILabel()
@@ -68,7 +69,7 @@ enum MathImageRenderer {
         let frameHeight = max(ceil(fittedSize.height), ceil(fontSize / 2) + 2)
         let size = CGSize(width: ceil(fittedSize.width), height: frameHeight)
         guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else {
-            return nil
+            throw MathRenderFailure(reason: .laidOutNothing, source: normalized)
         }
         label.frame = CGRect(origin: .zero, size: size)
 
@@ -77,7 +78,11 @@ enum MathImageRenderer {
         #else
         label.layout()
         #endif
-        guard let displayList = label.displayList else { return nil }
+        // The engine drops its display list only when it has no math list, and one was just set,
+        // so this cannot fire. It is the same "nothing to draw" outcome either way.
+        guard let displayList = label.displayList else {
+            throw MathRenderFailure(reason: .laidOutNothing, source: normalized)
+        }
 
         // Replicate the label's vertical placement to locate the baseline:
         // content is centered with its height clamped to fontSize/2 minimum.

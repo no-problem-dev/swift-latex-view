@@ -10,28 +10,24 @@ import SwiftUI
 struct InlineTextTests {
 
     @Test("Valid LaTeX produces a Text segment")
-    func validLatex() {
-        let text = LaTeXView.inlineText("x^2", color: .black)
-
-        #expect(text != nil)
+    func validLatex() throws {
+        _ = try LaTeXView.inlineText("x^2", color: .black)
     }
 
-    @Test("Invalid LaTeX returns nil so callers can fall back")
+    @Test("Invalid LaTeX fails so callers can fall back")
     func invalidLatex() {
-        let text = LaTeXView.inlineText(#"\notarealcommand{"#, color: .black)
-
-        #expect(text == nil)
+        #expect(throws: MathRenderFailure.self) {
+            try LaTeXView.inlineText(#"\notarealcommand{"#, color: .black)
+        }
     }
 
     @Test("Font family and size are accepted")
-    func customFont() {
-        let text = LaTeXView.inlineText(
+    func customFont() throws {
+        _ = try LaTeXView.inlineText(
             #"\frac{1}{2}"#,
             fontFamily: .fira,
             fontSize: 21,
             color: .blue
         )
-
-        #expect(text != nil)
     }
 }

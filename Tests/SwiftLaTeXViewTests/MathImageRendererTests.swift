@@ -11,8 +11,8 @@ import SwiftUI
 struct MathImageRendererTests {
 
     @Test("Valid LaTeX renders to a non-empty image")
-    func rendersValidLatex() {
-        let rendered = MathImageRenderer.render(
+    func rendersValidLatex() throws {
+        let rendered = try MathImageRenderer.render(
             latex: "x^2 + y^2",
             mode: .display,
             fontFamily: .latinModern,
@@ -20,46 +20,45 @@ struct MathImageRendererTests {
             color: .black
         )
 
-        #expect(rendered != nil)
-        #expect((rendered?.size.width ?? 0) > 0)
-        #expect((rendered?.size.height ?? 0) > 0)
+        #expect(rendered.size.width > 0)
+        #expect(rendered.size.height > 0)
     }
 
-    @Test("Invalid LaTeX returns nil")
-    func invalidLatexReturnsNil() {
-        let rendered = MathImageRenderer.render(
-            latex: #"\notarealcommand{"#,
-            mode: .display,
-            fontFamily: .latinModern,
-            fontSize: 20,
-            color: .black
-        )
-
-        #expect(rendered == nil)
+    @Test("Invalid LaTeX reports a parse failure")
+    func invalidLatexReportsParseFailure() {
+        #expect(throws: MathRenderFailure.self) {
+            try MathImageRenderer.render(
+                latex: #"\notarealcommand{"#,
+                mode: .display,
+                fontFamily: .latinModern,
+                fontSize: 20,
+                color: .black
+            )
+        }
     }
 
     @Test("Display style sets operator limits above/below, growing height")
     func displayTallerThanInline() {
         func height(_ mode: MathMode) -> CGFloat {
-            MathImageRenderer.render(
+            (try? MathImageRenderer.render(
                 latex: #"\sum_{i=1}^{n} i"#,
                 mode: mode,
                 fontFamily: .latinModern,
                 fontSize: 20,
                 color: .black
-            )?.size.height ?? 0
+            ))?.size.height ?? 0
         }
 
         #expect(height(.display) > height(.inline))
     }
 
     @Test("Short expressions are not clipped by the engine's height clamp")
-    func shortExpressionClampRegression() {
+    func shortExpressionClampRegression() throws {
         // A single lowercase letter always falls into the engine's
         // fontSize/2 height clamp. A negative descent means the glyph's
         // tail is shifted below the frame and clipped (detached-fragment
         // artifact). The frame must absorb the clamp instead.
-        let rendered = MathImageRenderer.render(
+        let rendered = try MathImageRenderer.render(
             latex: "n",
             mode: .inline,
             fontFamily: .latinModern,
@@ -67,13 +66,13 @@ struct MathImageRendererTests {
             color: .black
         )
 
-        #expect((rendered?.descent ?? -1) >= 0)
-        #expect((rendered?.size.height ?? 0) >= 17 / 2)
+        #expect(rendered.descent >= 0)
+        #expect(rendered.size.height >= 17 / 2)
     }
 
     @Test("Renderer reports a descent for baseline alignment")
-    func descentForBaseline() {
-        let rendered = MathImageRenderer.render(
+    func descentForBaseline() throws {
+        let rendered = try MathImageRenderer.render(
             latex: #"\frac{a}{b}"#,
             mode: .inline,
             fontFamily: .latinModern,
@@ -82,12 +81,12 @@ struct MathImageRendererTests {
         )
 
         // A fraction extends below the baseline.
-        #expect((rendered?.descent ?? 0) > 0)
+        #expect(rendered.descent > 0)
     }
 
     @Test("Every font family renders", arguments: MathFontFamily.allCases)
-    func allFontFamiliesRender(family: MathFontFamily) {
-        let rendered = MathImageRenderer.render(
+    func allFontFamiliesRender(family: MathFontFamily) throws {
+        let rendered = try MathImageRenderer.render(
             latex: #"\int_0^1 x\,dx"#,
             mode: .display,
             fontFamily: family,
@@ -95,6 +94,6 @@ struct MathImageRendererTests {
             color: .black
         )
 
-        #expect(rendered != nil, "family: \(family)")
+        #expect(rendered.size.width > 0, "family: \(family)")
     }
 }

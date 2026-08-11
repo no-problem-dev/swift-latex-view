@@ -65,8 +65,8 @@ LaTeXView(#"e^{i\pi} + 1 = 0"#)
 
 ### What happens when parsing fails
 
-LaTeX that will not parse — a model response cut off mid-expression, most often — is drawn as its
-raw source in a monospaced font, tinted with `MathStyle.errorColor(_:)`. There is no crash and no
+LaTeX that will not parse — a model response cut off mid-expression, most often — is drawn as the
+source the engine was given in a monospaced font, tinted with `MathStyle.errorColor(_:)`. There is no crash and no
 blank view, but the view keeps no error either. Call `MathExpression.validate()` first if you need
 to know why, or want to substitute your own fallback.
 

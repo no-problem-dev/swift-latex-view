@@ -18,10 +18,10 @@ import LaTeXCore
 /// }
 /// ```
 ///
-/// Source that cannot be parsed — a truncated LLM response, say — falls back to showing the raw
-/// string in a monospaced font tinted with the style's error color. There is no crash and no
-/// empty view, but there is also no error to inspect: call `MathExpression.validate()` first
-/// if the caller needs to know why.
+/// Source that cannot be parsed — a truncated LLM response, say — falls back to showing the source
+/// the engine was given, in a monospaced font tinted with the style's error color. There is no
+/// crash and no empty view, but the view itself keeps no error: call `MathExpression.validate()`
+/// first if the caller needs to know why.
 public struct LaTeXView: View {
 
     /// The expression to typeset, kept verbatim — nothing is parsed until the body is evaluated.
@@ -52,7 +52,8 @@ public struct LaTeXView: View {
     }
 
     public var body: some View {
-        if let rendered = renderedMath {
+        switch renderedMath {
+        case .success(let rendered):
             switch expression.mode {
             case .display:
                 ScrollableDisplayMath(image: mathImage(rendered), padding: style.padding(spacing))
@@ -61,19 +62,23 @@ public struct LaTeXView: View {
                     .alignmentGuide(.firstTextBaseline) { _ in rendered.size.height - rendered.descent }
                     .alignmentGuide(.lastTextBaseline) { _ in rendered.size.height - rendered.descent }
             }
-        } else {
-            fallback
+        case .failure(let failure):
+            fallback(failure)
         }
     }
 
-    private var renderedMath: RenderedMath? {
-        MathImageRenderer.render(
-            latex: expression.latex,
-            mode: expression.mode,
-            fontFamily: style.fontFamily,
-            fontSize: expression.mode == .display ? style.displayFontSize : style.inlineFontSize,
-            color: style.textColor(palette)
-        )
+    private var renderedMath: Result<RenderedMath, MathRenderFailure> {
+        do {
+            return .success(try MathImageRenderer.render(
+                latex: expression.latex,
+                mode: expression.mode,
+                fontFamily: style.fontFamily,
+                fontSize: expression.mode == .display ? style.displayFontSize : style.inlineFontSize,
+                color: style.textColor(palette)
+            ))
+        } catch {
+            return .failure(error)
+        }
     }
 
     private func mathImage(_ rendered: RenderedMath) -> Image {
@@ -84,8 +89,8 @@ public struct LaTeXView: View {
         #endif
     }
 
-    private var fallback: some View {
-        Text(expression.latex)
+    private func fallback(_ failure: MathRenderFailure) -> some View {
+        Text(failure.source)
             .font(.system(.body, design: .monospaced))
             .foregroundStyle(style.errorColor(palette))
     }
@@ -137,23 +142,23 @@ extension LaTeXView {
     ///   - fontFamily: The math font. Defaults to Latin Modern.
     ///   - fontSize: Point size. Match the size of the surrounding text.
     ///   - color: The text color. Resolving it from a design system palette is the caller's job.
-    /// - Returns: A `Text` segment, or `nil` if the LaTeX could not be parsed.
+    /// - Returns: A `Text` segment.
+    /// - Throws: ``MathRenderFailure`` describing what stopped the render, so a caller can tell
+    ///   source the engine rejected from source that typeset to nothing and pick its own fallback.
     @MainActor
     public static func inlineText(
         _ latex: String,
         fontFamily: MathFontFamily = .latinModern,
         fontSize: CGFloat = 17,
         color: Color
-    ) -> Text? {
-        guard let rendered = MathImageRenderer.render(
+    ) throws(MathRenderFailure) -> Text {
+        let rendered = try MathImageRenderer.render(
             latex: latex,
             mode: .inline,
             fontFamily: fontFamily,
             fontSize: fontSize,
             color: color
-        ) else {
-            return nil
-        }
+        )
         #if canImport(UIKit)
         let image = Image(uiImage: rendered.image)
         #elseif canImport(AppKit)

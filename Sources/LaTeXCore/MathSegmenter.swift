@@ -79,6 +79,14 @@ private struct Scanner {
     var textStart = 0
     var segments: [MathSegment] = []
 
+    /// Indices already known to lead nowhere, one bit per closer.
+    ///
+    /// Allocated on the first failed search and left empty otherwise, so input that closes what
+    /// it opens pays nothing.
+    var deadEnds: [UInt8] = []
+    /// Scratch for the indices the current search has walked. Reused across searches.
+    var walked: [Int] = []
+
     mutating func run() -> [MathSegment] {
         while i < chars.count {
             switch chars[i] {
@@ -128,24 +136,43 @@ private struct Scanner {
     private mutating func matchBackslashDelimited(closer: Character, mode: MathMode) {
         let start = i
         let contentStart = i + 2
+        guard let close = indexOfBackslashCloser(closer, from: contentStart) else {
+            completeOrSkipOpener(start: start, contentStart: contentStart, mode: mode, openerLength: 2)
+            return
+        }
+        let latex = trimmed(contentStart..<close)
+        if latex.isEmpty {
+            i = close + 2
+        } else {
+            emitMath(latex, mode: mode, from: start, to: close + 2)
+        }
+    }
+
+    /// Walks forward for `\`+`closer`, stepping over escape pairs, and returns the index of the
+    /// backslash that opens it.
+    ///
+    /// The walk from an index is fully determined by that index, so whether it ends in a match is
+    /// a property of the index alone. A walk that comes up empty therefore records every index it
+    /// passed through, and a later walk that reaches one of them stops immediately. Without that
+    /// memory, one opener whose closer never arrives makes every following opener re-walk the
+    /// whole tail of the document — quadratic, on a path that runs on the main actor for every
+    /// token of a streaming response.
+    private mutating func indexOfBackslashCloser(_ closer: Character, from contentStart: Int) -> Int? {
+        let mark = deadEndMark(closer)
+        walked.removeAll(keepingCapacity: true)
         var j = contentStart
-        while j + 1 < chars.count {
+        while j + 1 < chars.count, !isDeadEnd(j, mark) {
             if chars[j] == "\\" {
-                if chars[j + 1] == closer {
-                    let latex = trimmed(contentStart..<j)
-                    if latex.isEmpty {
-                        i = j + 2
-                    } else {
-                        emitMath(latex, mode: mode, from: start, to: j + 2)
-                    }
-                    return
-                }
+                if chars[j + 1] == closer { return j }
+                walked.append(j)
                 j += 2
             } else {
+                walked.append(j)
                 j += 1
             }
         }
-        completeOrSkipOpener(start: start, contentStart: contentStart, mode: mode, openerLength: 2)
+        recordDeadEnds(mark)
+        return nil
     }
 
     // MARK: Dollar: $$...$$ and $...$
@@ -280,6 +307,26 @@ private struct Scanner {
             }
         }
         i = start + openerLength
+    }
+
+    /// The bit ``deadEnds`` uses for a given closer. Searches for different closers follow
+    /// different paths, so they may not share an answer.
+    private func deadEndMark(_ closer: Character) -> UInt8 {
+        closer == "]" ? 0b01 : 0b10
+    }
+
+    private func isDeadEnd(_ index: Int, _ mark: UInt8) -> Bool {
+        !deadEnds.isEmpty && deadEnds[index] & mark != 0
+    }
+
+    private mutating func recordDeadEnds(_ mark: UInt8) {
+        guard !walked.isEmpty else { return }
+        if deadEnds.isEmpty {
+            deadEnds = [UInt8](repeating: 0, count: chars.count)
+        }
+        for index in walked {
+            deadEnds[index] |= mark
+        }
     }
 
     private func trimmed(_ range: Range<Int>) -> String {

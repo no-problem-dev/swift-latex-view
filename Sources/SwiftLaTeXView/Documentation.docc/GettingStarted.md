@@ -46,11 +46,11 @@ and color that match the text around it:
 
 ```swift
 var body: some View {
-    let formula: Text = LaTeXView.inlineText(
+    let formula: Text = (try? LaTeXView.inlineText(
         #"\alpha"#,
         fontSize: 17,
         color: .primary
-    ) ?? Text("α")
+    )) ?? Text("α")
     return Text("Coefficient ") + formula
 }
 ```
