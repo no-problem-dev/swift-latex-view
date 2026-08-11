@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-11
+
 ### Fixed
 
 - **Dark snapshots typeset the math in the light color.** The snapshot suite drove its theme axis
