@@ -9,25 +9,26 @@ import AppKit
 typealias MathPlatformImage = NSImage
 #endif
 
-/// レイアウトに必要なメトリクスを持つ、タイプセット済み数式。
+/// A typeset expression together with the metrics needed to place it in a layout.
 struct RenderedMath {
     let image: MathPlatformImage
     let size: CGSize
-    /// ベースラインから画像上端までの距離。
+    /// Distance from the baseline up to the top edge of the image.
     let ascent: CGFloat
-    /// ベースラインから画像下端までの距離。
-    /// インライン数式を周囲テキストのベースラインに揃えるために使用する。
+    /// Distance from the baseline down to the bottom edge of the image. Subtract this from the
+    /// image height to align inline math with the baseline of the text around it.
     let descent: CGFloat
 }
 
-/// LaTeX ソースを組版エンジン経由でラスタライズした画像に変換するブリッジ。
+/// Turns LaTeX source into a rasterized image by way of the typesetting engine.
 ///
-/// エンジン（SwiftMath）は実装詳細として隠蔽する。呼び出し側には ``RenderedMath`` のみを公開する。
+/// The engine (SwiftMath) stays an implementation detail; callers only ever see ``RenderedMath``,
+/// so upgrading it does not move the package's public API.
 ///
-/// 実装メモ: SwiftMath 1.7.x は `MTTypesetter` を internal にしているため、
-/// 唯一の公開組版ルートは `MTMathUILabel` であり、その `layoutSubviews()`/`layout()` と
-/// `displayList` が public である。このラベルをオフスクリーンで組版器として使用してラスタライズする。
-/// ウィンドウには一切アタッチしないため、描画は MainActor に束縛される。
+/// Implementation note: SwiftMath 1.7.x keeps `MTTypesetter` internal, which leaves `MTMathUILabel`
+/// as the only public route to typesetting — its `layoutSubviews()`/`layout()` and `displayList`
+/// are public. So a label is used offscreen as a typesetter and then rasterized. It is never
+/// attached to a window, but drawing is still bound to the main actor.
 enum MathImageRenderer {
 
     @MainActor
@@ -92,9 +93,10 @@ enum MathImageRenderer {
         )
     }
 
-    /// ラベルは表示リストを CoreGraphics 座標系（y 上向き）で描画し、オンスクリーン補正を
-    /// `layer.isGeometryFlipped` に依存する。オフスクリーン描画ではこのフリップが効かないため、
-    /// コンテキストを手動でフリップしてラベルの描画メソッドを直接呼び出す。
+    /// The label draws its display list in CoreGraphics coordinates (y up) and relies on
+    /// `layer.isGeometryFlipped` to correct that on screen. Offscreen there is no layer to do the
+    /// flipping, so the context is flipped by hand and the label's draw method is called directly.
+    /// Skipping this renders every expression upside down.
     @MainActor
     private static func rasterize(_ label: MTMathUILabel) -> MathPlatformImage {
         #if canImport(UIKit)

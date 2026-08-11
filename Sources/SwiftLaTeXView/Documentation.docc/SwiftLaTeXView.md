@@ -1,36 +1,40 @@
 # ``SwiftLaTeXView``
 
-DesignSystem と統合した SwiftUI ネイティブの LaTeX 数式レンダリングライブラリ。
-LLM 出力やユーザーコンテンツを正確なタイプセットと自動テーマ対応で表示する。
+SwiftUI-native LaTeX math rendering, integrated with DesignSystem, for showing model output and
+user content with correct typesetting and colors that follow the app's theme.
 
 ## Overview
 
-`SwiftLaTeXView` は swift-latex-view パッケージの描画層を担う。
-SwiftMath 組版エンジンを SwiftUI の `View` としてラップし、
-DesignSystem 環境から色・スペーシング・フォントトークンを読み取るため、
-数式はアプリのビジュアルテーマに自動的に追従する。
+`SwiftLaTeXView` is the rendering half of the swift-latex-view package. It wraps the SwiftMath
+typesetting engine in a SwiftUI `View` and reads color, spacing, and font tokens from the
+DesignSystem environment, so math tracks the app's appearance without being configured at each
+call site.
 
-公開 API は 3 つの層で構成される:
-- **`LaTeXView`** — ディスプレイ数式とインライン数式に対応するビュー
-- **`MathStyle`** — フォント・サイズ・色をカスタマイズするプロトコル
-- **`MathFontFamily`** — 同梱済み OpenType MATH フォントの enum
+The public surface is three pieces:
+- **`LaTeXView`** — the view, for display and inline math
+- **`MathStyle`** — the protocol for changing font, size, and color
+- **`MathFontFamily`** — the OpenType MATH fonts that ship with the package
 
-組版エンジン（SwiftMath）は `internal import` で隠蔽しており、
-アプリが直接依存することはない。エンジンをアップグレードしても公開 API は変わらない。
+The engine is an `internal import`, so an app never depends on SwiftMath directly and upgrading it
+does not move this package's public API.
 
-### 基本的な描画
+`LaTeXCore` is re-exported, so `import SwiftLaTeXView` also brings in `MathExpression`,
+`MathMode`, `MathSegmenter`, `MathSegment`, and `MathParseError`. Those types are documented under
+`LaTeXCore`.
+
+### Rendering math
 
 ```swift
 import SwiftUI
 import SwiftLaTeXView
 
-struct ContentView: View {
+struct TheoremView: View {
     var body: some View {
         VStack(spacing: 24) {
-            // ディスプレイ（ブロック）数式 — 中央揃え、コンテナを超えると横スクロール
+            // Display (block) math — centered, scrolling sideways if it outgrows its container
             LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
 
-            // インライン数式 — テキストのベースラインに揃える
+            // Inline math — aligned to the text baseline
             HStack(alignment: .firstTextBaseline) {
                 Text("where")
                 LaTeXView(#"a \neq 0"#, mode: .inline)
@@ -41,9 +45,9 @@ struct ContentView: View {
 }
 ```
 
-### スタイルのカスタマイズ
+### Changing the style
 
-`MathStyle` を実装して必要なプロパティのみオーバーライドする:
+Conform to `MathStyle` and override only what you want to change; every requirement has a default.
 
 ```swift
 struct AccentMathStyle: MathStyle {
@@ -59,37 +63,30 @@ LaTeXView(#"e^{i\pi} + 1 = 0"#)
     .mathStyle(AccentMathStyle())
 ```
 
-### フォールバック動作
+### What happens when parsing fails
 
-LaTeX のパースに失敗した場合（LLM 出力の途中切れなど）、`LaTeXView` は
-`MathStyle.errorColor(_:)` を使ったモノスペースフォントで生ソースを表示する。
-クラッシュも空ビューも発生しない。
+LaTeX that will not parse — a model response cut off mid-expression, most often — is drawn as its
+raw source in a monospaced font, tinted with `MathStyle.errorColor(_:)`. There is no crash and no
+blank view, but the view keeps no error either. Call `MathExpression.validate()` first if you need
+to know why, or want to substitute your own fallback.
 
 ## Topics
 
-### 基本
+### Essentials
 
 - <doc:GettingStarted>
 
-### レンダリング
+### Rendering
 
 - ``LaTeXView``
 
-### スタイリング
+### Styling
 
 - ``MathStyle``
 - ``DefaultMathStyle``
 - ``MathFontFamily``
 
-### 環境
+### Environment
 
 - ``SwiftUICore/EnvironmentValues/mathStyle``
 - ``SwiftUICore/View/mathStyle(_:)``
-
-### コア型（LaTeXCore から再エクスポート）
-
-- `MathExpression`
-- `MathMode`
-- `MathSegmenter`
-- `MathSegment`
-- `MathParseError`

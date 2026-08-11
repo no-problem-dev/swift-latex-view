@@ -15,12 +15,21 @@ swift build
 swift test
 ```
 
+That covers the interpretation layer and the engine integration. The UI snapshots
+need a simulator:
+
+```bash
+xcodebuild test -scheme swift-latex-view-Package \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
 **Verification happens here, not in CI.** The release workflow does not build or
-test — it only turns a tag into a GitHub Release. Run both commands locally and
-make sure they pass before opening a pull request.
+test — it only turns a tag into a GitHub Release. Run `swift build` and
+`swift test` locally and make sure they pass before opening a pull request.
 
 Documentation lives in the DocC catalog under `Sources/*/*.docc/`. Public
-declarations are documented with `///` comments, in English.
+declarations are documented with `///` comments, in English, and so is
+`CHANGELOG.md` — each of its sections becomes the body of a GitHub Release.
 
 ## Releasing
 

@@ -1,29 +1,30 @@
-/// 数式のレイアウトモード。
+/// How an expression should be placed relative to the text around it.
 public enum MathMode: String, Sendable, Equatable, Hashable, CaseIterable {
-    /// 行内に配置し、ベースラインで垂直に揃える。
+    /// Set within a line of prose and aligned vertically on the text baseline.
     case inline
-    /// スタンドアロンブロックとして配置し、ディスプレイスタイルの余白を付与する。
+    /// Set as a standalone block, with display-style spacing and larger operators.
     case display
 }
 
-/// LaTeX 数式とそのレイアウトモードを保持する値型。
+/// A LaTeX expression paired with the layout mode it should be set in.
 ///
-/// LaTeX ソースはデリミタを除いた形で保持する。
-/// 解析は ``validate()`` 呼び出しか描画時まで行わない。
+/// The source is held exactly as given, delimiters already removed. Nothing is parsed on
+/// construction — an expression only meets the engine when ``validate()`` is called or when a
+/// view renders it, so building one is cheap and never fails.
 public struct MathExpression: Sendable, Equatable, Hashable {
-    /// デリミタを除いた LaTeX ソース文字列。
+    /// The LaTeX source, with no surrounding delimiters.
     public let latex: String
 
-    /// レイアウトモード。
+    /// The layout mode this expression was built for.
     public let mode: MathMode
 
-    /// 数式を生成する。
+    /// Creates an expression.
     ///
     /// - Parameters:
-    ///   - latex: デリミタを含まない LaTeX ソース。たとえば `#"\frac{1}{2}"#`。
-    ///     `"$\frac{1}{2}$"` のようにデリミタを含めると、デリミタが文字として描画される。
-    ///     散文中の数式を抽出する場合は ``MathSegmenter`` を使うとデリミタを自動除去できる。
-    ///   - mode: レイアウトモード。デフォルトは ``MathMode/display``。
+    ///   - latex: LaTeX source **without** delimiters, for example `#"\frac{1}{2}"#`.
+    ///     Leaving the delimiters in — `"$\frac{1}{2}$"` — typesets them as literal characters.
+    ///     To pull math out of prose, use ``MathSegmenter``, which strips them for you.
+    ///   - mode: The layout mode. Defaults to ``MathMode/display``.
     public init(_ latex: String, mode: MathMode = .display) {
         self.latex = latex
         self.mode = mode
@@ -31,14 +32,15 @@ public struct MathExpression: Sendable, Equatable, Hashable {
 }
 
 extension MathExpression {
-    /// LLM による二重エスケープを修正した LaTeX ソース。
+    /// The source with LLM double-escaping repaired.
     ///
-    /// LLM が JSON 内で LaTeX を出力すると、バックスラッシュが二重エスケープされる場合がある。
-    /// その結果 `\\frac` のような文字列が含まれ、エンジンは `\\` を改行として解釈してコマンド名を
-    /// リテラル文字として描画してしまう。`\\` の直後に英字が続く場合を `\` に畳み込むことで修正する。
-    /// 正当な改行（`a & b \\ c & d` など）の後には空白か `\` が続くため、英字は直後に来ない。
+    /// A model emitting LaTeX inside JSON often escapes its backslashes twice, so what arrives is
+    /// `\\frac` rather than `\frac`. The engine reads `\\` as a line break and then draws the
+    /// command name as literal letters. Collapsing `\\` to `\` wherever a letter follows repairs
+    /// that, and it is safe: a genuine line break (`a & b \\ c & d`) is always followed by a
+    /// space or another backslash, never by a letter.
     ///
-    /// レンダラーと ``validate()`` はこの正規化済み文字列を使用する。
+    /// Both the renderer and ``validate()`` work from this form, not from ``latex``.
     public var normalizedLatex: String {
         guard latex.contains(#"\\"#) else { return latex }
         var result = ""

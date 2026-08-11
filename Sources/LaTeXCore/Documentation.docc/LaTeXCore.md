@@ -1,19 +1,21 @@
 # ``LaTeXCore``
 
-Swift 向けのプラットフォーム非依存 LaTeX 数式解析ライブラリ。UI 非依存で LLM 出力の数式を分割・検証・正規化する。
+Platform-independent LaTeX parsing for Swift: split model output into text and math, validate it,
+and repair the escaping models get wrong — with no UI dependency.
 
 ## Overview
 
-`LaTeXCore` は swift-latex-view パッケージの解釈層を担う。
-生テキスト（LLM が出力する Markdown を含む）を強型の `MathSegment` に変換し、
-テキストと数式を区別する。また、組版エンジンに渡す前に数式の妥当性を検証できる。
+`LaTeXCore` is the interpretation half of the swift-latex-view package. It turns raw text —
+including the Markdown a model streams back — into strongly typed `MathSegment` values that
+separate prose from formulas, and it can check an expression against the typesetting engine before
+anything tries to draw it.
 
-`LaTeXCore` は SwiftUI・UIKit に依存しないため、
-サーバーサイド Swift・CLI ツール・テストターゲットなど、画面表示が不要な場所でも使用できる。
+Nothing here imports SwiftUI or UIKit, so it runs anywhere the answer is not a pixel: server-side
+Swift, a CLI tool, or a test target.
 
-### LLM 出力の解析
+### Parsing model output
 
-`MathSegmenter` は主要 LLM が出力するすべてのデリミタ記法を認識する:
+`MathSegmenter` recognizes every delimiter style the major models emit:
 
 ```swift
 import LaTeXCore
@@ -23,10 +25,11 @@ let segments = segmenter.segments(in: "Energy: $$E = mc^2$$ — Einstein.")
 // → [.text("Energy: "), .math(MathExpression("E = mc^2", mode: .display)), .text(" — Einstein.")]
 ```
 
-### ストリーミング対応
+### Handling a stream
 
-ライブの LLM ストリームを受信する際は、閉じデリミタがまだ届いていない場合がある。
-`completeUnterminated` を有効にすると、入力末尾の開きデリミタを有効な数式として扱う:
+While a response is still arriving, the closing delimiter may not have been sent yet. Turning on
+`completeUnterminated` treats an opening delimiter at the end of the input as valid math, so the
+formula appears as it is written instead of after it finishes:
 
 ```swift
 let streaming = MathSegmenter(options: .init(completeUnterminated: true))
@@ -34,34 +37,35 @@ let partial = streaming.segments(in: "Consider \\(x^2 + y^2")
 // → [.text("Consider "), .math(MathExpression("x^2 + y^2", mode: .inline))]
 ```
 
-### 描画前の検証
+### Checking before rendering
 
-不正な LLM 出力でクラッシュを回避するため、描画前に `validate()` でパース失敗を検出する:
+`validate()` reports what the parser objected to, which is the only way to distinguish malformed
+input from a rendering problem:
 
 ```swift
-let expr = MathExpression(#"\frac{1}{2"#) // 閉じ括弧が欠けている
+let expr = MathExpression(#"\frac{1}{2"#) // missing closing brace
 if let error = expr.validate() {
-    print("描画不可: \(error.message)")
+    print("cannot render: \(error.message)")
 }
 ```
 
 ## Topics
 
-### 基本
+### Essentials
 
 - <doc:GettingStarted>
 
-### テキスト分割
+### Splitting text
 
 - ``MathSegmenter``
 - ``MathSegment``
 - ``MathSegmenter/Options``
 
-### 数式
+### Expressions
 
 - ``MathExpression``
 - ``MathMode``
 
-### 検証
+### Validation
 
 - ``MathParseError``

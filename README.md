@@ -2,79 +2,55 @@ English | [日本語](./README.ja.md)
 
 # SwiftLaTeXView
 
-SwiftUI-native LaTeX math rendering for Swift, integrated with DesignSystem. Robust display of LLM output and user-generated content with correct typesetting and automatic theming.
+SwiftUI-native LaTeX math rendering, robust to the LaTeX that language models actually emit.
 
 ![Swift 6.2+](https://img.shields.io/badge/Swift-6.2+-orange.svg)
 ![iOS 17+](https://img.shields.io/badge/iOS-17+-blue.svg)
 ![macOS 14+](https://img.shields.io/badge/macOS-14+-purple.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## Features
+## Overview
 
-- **Two-layer architecture**: `LaTeXCore` (interpretation layer, no UI dependency) and `SwiftLaTeXView` (rendering layer, DesignSystem integration)
-- **LLM output support**: Detects and normalizes all delimiter styles from OpenAI (`\(...\)` `\[...\]`), Claude, and Gemini (`$...$` `$$...$$`)
-- **Currency false-positive prevention**: Single `$` uses conservative Pandoc rules (non-whitespace adjacent, not immediately followed by digit)
-- **Streaming support**: Auto-completion option for unterminated delimiters (`completeUnterminated`)
-- **Parse-failure fallback**: Invalid LaTeX degrades to raw source display in error color — no crashes, no empty views
-- **Engine encapsulation**: The typesetting engine (SwiftMath) is hidden behind `internal import`; public API remains stable
+Model output is not clean LaTeX. Delimiters vary by vendor, backslashes come back double-escaped
+from JSON, streams arrive with the closing `$$` still in flight, and prices look like math. This
+package takes all of that as the normal case.
 
-## Quick Start
+| Delimiter | Mode | Emitted by |
+|---|---|---|
+| `$$...$$` | display | Claude / Gemini / GitHub |
+| `\[...\]` | display | OpenAI |
+| `\(...\)` | inline | OpenAI |
+| `$...$` | inline | Claude / Gemini — judged by Pandoc's rules, so `costs $5 to $10` stays prose |
+
+- **Two products.** `LaTeXCore` splits and validates text with no UI dependency, so it runs on the
+  server or in a CLI. `SwiftLaTeXView` renders, and reads its colors and spacing from DesignSystem.
+- **Streaming.** `completeUnterminated` treats a dangling delimiter at the end of the input as math,
+  so a formula appears as it is typed rather than after the closing delimiter lands.
+- **No dead ends.** LaTeX that fails to parse degrades to its raw source in the error color — never
+  a crash, never an empty view.
+- **The engine stays hidden.** SwiftMath is an `internal import`; upgrading it does not move the
+  public API.
+
+## Usage
 
 ```swift
-import SwiftUI
 import SwiftLaTeXView
 
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            // Display math
-            LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
+// Centered, and scrolls sideways rather than stretching the layout it sits in.
+LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
 
-            // Inline math, baseline-aligned with surrounding text
-            HStack(alignment: .firstTextBaseline) {
-                Text("where")
-                LaTeXView(#"a \neq 0"#, mode: .inline)
-                Text("holds.")
-            }
-        }
-    }
-}
+// On the text baseline, inside an HStack(alignment: .firstTextBaseline).
+LaTeXView(#"a \neq 0"#, mode: .inline)
 ```
 
-### Detecting math in text (LaTeXCore)
+## Documentation
 
-```swift
-import LaTeXCore
-
-let segmenter = MathSegmenter()
-let segments = segmenter.segments(in: "The energy is $$E = mc^2$$ as shown.")
-// [.text("The energy is "), .math(MathExpression("E = mc^2", mode: .display)), .text(" as shown.")]
-
-// Enable unterminated completion for streaming LLM output
-let streaming = MathSegmenter(options: .init(completeUnterminated: true))
-```
-
-### Custom styling
-
-```swift
-struct AccentMathStyle: MathStyle {
-    var fontFamily: MathFontFamily { .fira }
-    var displayFontSize: CGFloat { 28 }
-
-    func textColor(_ palette: any ColorPalette) -> Color {
-        palette.primary
-    }
-}
-
-LaTeXView(#"e^{i\pi} + 1 = 0"#)
-    .mathStyle(AccentMathStyle())
-```
+[API reference and guides](https://no-problem-dev.github.io/swift-latex-view/documentation/swiftlatexview/) —
+pulling math out of prose, handling streamed output, and writing a `MathStyle`.
 
 ## Installation
 
-### Swift Package Manager
-
-Add to your `Package.swift`:
+Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
@@ -82,49 +58,23 @@ dependencies: [
 ]
 ```
 
-Add to your target:
+Then depend on whichever product you need:
 
 ```swift
 .target(
     name: "YourTarget",
     dependencies: [
         .product(name: "SwiftLaTeXView", package: "swift-latex-view"),
-        // LaTeXCore only, for server-side Swift or CLI targets
+        // LaTeXCore alone, for server-side Swift or CLI targets
         .product(name: "LaTeXCore", package: "swift-latex-view")
     ]
 )
 ```
 
-## Architecture
+## Contributing
 
-```
-SwiftMath (typesetting engine, hidden behind internal import)
-    ↑
-LaTeXCore ──── MathExpression / MathSegmenter / validate()
-    ↑           (no SwiftUI dependency — usable in server-side Swift)
-SwiftLaTeXView ─ LaTeXView / MathStyle / Environment
-    ↑           (DesignSystem token integration)
-Your App
-```
-
-| Delimiter | Mode | Source |
-|---|---|---|
-| `$$...$$` | display | Claude / Gemini / GitHub |
-| `\[...\]` | display | OpenAI |
-| `\(...\)` | inline | OpenAI |
-| `$...$` | inline | Claude / Gemini (Pandoc rules) |
-
-## Testing
-
-```bash
-# Interpretation layer + engine integration (macOS CLI)
-swift test
-
-# UI snapshots (iOS Simulator)
-xcodebuild test -scheme swift-latex-view-Package \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-```
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE).

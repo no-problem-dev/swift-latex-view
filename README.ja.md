@@ -2,79 +2,54 @@
 
 # SwiftLaTeXView
 
-SwiftUI ネイティブな LaTeX 数式レンダリングライブラリ。DesignSystem と統合し、LLM 出力にも堅牢な数式表示を実現する。
+SwiftUI ネイティブの LaTeX 数式レンダリング。言語モデルが実際に吐く LaTeX に耐える。
 
 ![Swift 6.2+](https://img.shields.io/badge/Swift-6.2+-orange.svg)
 ![iOS 17+](https://img.shields.io/badge/iOS-17+-blue.svg)
 ![macOS 14+](https://img.shields.io/badge/macOS-14+-purple.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## 特徴
+## 概要
 
-- **2 層アーキテクチャ**: `LaTeXCore`（解釈層・UI 非依存）と `SwiftLaTeXView`（描画層・DesignSystem 統合）
-- **LLM 出力対応**: OpenAI（`\(...\)` `\[...\]`）/ Claude / Gemini（`$...$` `$$...$$`）のデリミタ記法を全て検出・正規化
-- **通貨誤検出防止**: single-`$` は Pandoc 規則（前後非空白・閉じ直後非数字）で保守的に判定
-- **ストリーミング対応**: 未終端デリミタの自動補完オプション（`completeUnterminated`）
-- **パース失敗時フォールバック**: 不正な LaTeX はエラー色のソース表示に劣化（クラッシュ・空白なし）
-- **エンジン隠蔽**: 組版エンジン（SwiftMath）は `internal import` で完全に隠蔽。公開 API は安定
+モデルの出力は綺麗な LaTeX ではない。デリミタはベンダーごとに違い、JSON を経由したバックスラッシュは
+二重エスケープで返り、ストリームは閉じ `$$` が届く前に表示され、金額は数式に見える。
+このパッケージはそれを異常系ではなく通常系として扱う。
 
-## クイックスタート
+| デリミタ | モード | 出力元 |
+|---|---|---|
+| `$$...$$` | display | Claude / Gemini / GitHub |
+| `\[...\]` | display | OpenAI |
+| `\(...\)` | inline | OpenAI |
+| `$...$` | inline | Claude / Gemini — Pandoc 規則で判定するので `costs $5 to $10` は文のまま |
+
+- **2 つのプロダクト。** `LaTeXCore` は UI に依存せず分割と検証だけを行うので、サーバーでも CLI でも動く。
+  `SwiftLaTeXView` は描画を担い、色とスペーシングを DesignSystem から読む
+- **ストリーミング。** `completeUnterminated` は入力末尾の未終端デリミタを数式として扱う。
+  閉じデリミタを待たずに、書かれた端から数式が出る
+- **行き止まりを作らない。** パースできない LaTeX はエラー色の生ソース表示に劣化する。
+  クラッシュも空ビューも起きない
+- **エンジンは隠す。** SwiftMath は `internal import`。上げても公開 API は動かない
+
+## 使い方
 
 ```swift
-import SwiftUI
 import SwiftLaTeXView
 
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            // ディスプレイ数式
-            LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
+// 中央揃え。器からはみ出す時はレイアウトを伸ばさず横スクロールする
+LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
 
-            // インライン数式（ベースライン揃え）
-            HStack(alignment: .firstTextBaseline) {
-                Text("where")
-                LaTeXView(#"a \neq 0"#, mode: .inline)
-                Text("holds.")
-            }
-        }
-    }
-}
+// テキストのベースラインに乗る。HStack(alignment: .firstTextBaseline) の中で使う
+LaTeXView(#"a \neq 0"#, mode: .inline)
 ```
 
-### テキストから数式を検出する（LaTeXCore）
+## ドキュメント
 
-```swift
-import LaTeXCore
-
-let segmenter = MathSegmenter()
-let segments = segmenter.segments(in: "The energy is $$E = mc^2$$ as shown.")
-// [.text("The energy is "), .math(MathExpression("E = mc^2", mode: .display)), .text(" as shown.")]
-
-// ストリーミング LLM 出力には未終端補完を有効化
-let streaming = MathSegmenter(options: .init(completeUnterminated: true))
-```
-
-### スタイルカスタマイズ
-
-```swift
-struct AccentMathStyle: MathStyle {
-    var fontFamily: MathFontFamily { .fira }
-    var displayFontSize: CGFloat { 28 }
-
-    func textColor(_ palette: any ColorPalette) -> Color {
-        palette.primary
-    }
-}
-
-LaTeXView(#"e^{i\pi} + 1 = 0"#)
-    .mathStyle(AccentMathStyle())
-```
+[API リファレンスとガイド](https://no-problem-dev.github.io/swift-latex-view/documentation/swiftlatexview/) —
+文中からの数式抽出、ストリーム出力の扱い、`MathStyle` の書き方。
 
 ## インストール
 
-### Swift Package Manager
-
-`Package.swift` に以下を追加する:
+`Package.swift` に追加する:
 
 ```swift
 dependencies: [
@@ -82,49 +57,23 @@ dependencies: [
 ]
 ```
 
-ターゲットに追加する:
+必要なプロダクトを依存に入れる:
 
 ```swift
 .target(
     name: "YourTarget",
     dependencies: [
         .product(name: "SwiftLaTeXView", package: "swift-latex-view"),
-        // 解釈層のみ必要な場合（サーバー・CLI でも使用可）
+        // サーバー・CLI なら LaTeXCore 単体でよい
         .product(name: "LaTeXCore", package: "swift-latex-view")
     ]
 )
 ```
 
-## アーキテクチャ
+## 開発に参加する
 
-```
-SwiftMath（組版エンジン、internal に隠蔽）
-    ↑
-LaTeXCore ──── MathExpression / MathSegmenter / validate()
-    ↑           （SwiftUI 非依存・サーバーでも使用可）
-SwiftLaTeXView ─ LaTeXView / MathStyle / Environment
-    ↑           （DesignSystem トークン連動）
-あなたのアプリ
-```
-
-| デリミタ | モード | 出力元 |
-|---|---|---|
-| `$$...$$` | display | Claude / Gemini / GitHub |
-| `\[...\]` | display | OpenAI |
-| `\(...\)` | inline | OpenAI |
-| `$...$` | inline | Claude / Gemini（Pandoc 規則で判定） |
-
-## テスト
-
-```bash
-# 解釈層 + エンジン統合（macOS CLI）
-swift test
-
-# UI スナップショット（iOS シミュレータ）
-xcodebuild test -scheme swift-latex-view-Package \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-```
+[CONTRIBUTING.md](./CONTRIBUTING.md) を参照。
 
 ## ライセンス
 
-MIT
+MIT — [LICENSE](./LICENSE) を参照。

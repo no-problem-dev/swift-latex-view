@@ -1,45 +1,20 @@
-# LaTeXCore をはじめる
+# Getting started with LaTeXCore
 
-Swift ターゲットにプラットフォーム非依存の LaTeX 数式解析を追加する。
+Split, validate, and repair LaTeX in any Swift target — no UI required.
 
-## インストール
+## Setup
 
-`Package.swift` に以下を追加する:
-
-```swift
-dependencies: [
-    .package(
-        url: "https://github.com/no-problem-dev/swift-latex-view.git",
-        .upToNextMajor(from: "0.1.1")
-    )
-]
-```
-
-ターゲットに `LaTeXCore` を追加する:
-
-```swift
-.target(
-    name: "YourTarget",
-    dependencies: [
-        .product(name: "LaTeXCore", package: "swift-latex-view")
-    ]
-)
-```
-
-## セットアップ
-
-必要な箇所で import する:
+Add the `LaTeXCore` product to your target (see the package README for the dependency snippet) and
+import it:
 
 ```swift
 import LaTeXCore
 ```
 
-`LaTeXCore` は Swift 6.2 以上を要求するだけで、プラットフォーム制約はない。
-サーバーサイド Swift・CLI ツール・SwiftUI を import できないターゲットでも安全に使用できる。
+`LaTeXCore` asks only for Swift 6.2; it carries no platform constraint. It is safe in server-side
+Swift, in a CLI tool, and in any target that cannot import SwiftUI.
 
-## 基本的な使い方
-
-### 文字列をテキストと数式に分割する
+## Splitting a string into text and math
 
 ```swift
 let segmenter = MathSegmenter()
@@ -60,34 +35,42 @@ for segment in segments {
 // text: .
 ```
 
-### 描画前に検証する
+Text outside the delimiters is preserved character for character, and a delimiter that does not go
+on to form valid math stays in the text rather than being dropped. Nothing in the input is lost.
+
+## Validating before you render
 
 ```swift
 let expr = MathExpression(#"\sqrt{x^2 + y^2}"#, mode: .display)
 if let error = expr.validate() {
-    // 生ソースにフォールバック
+    // Fall back to the raw source
     print("Parse error:", error.message)
 } else {
-    // 安全に描画可能
+    // Safe to render
 }
 ```
 
-### LLM の二重エスケープを修正する
+## Repairing double-escaped output
 
-LLM が JSON 内で LaTeX をエンコードすると、バックスラッシュが二重エスケープされて
-`\\frac` のような文字列が含まれる場合がある。`normalizedLatex` で自動的に修正できる:
+A model encoding LaTeX inside JSON often escapes its backslashes twice, so what arrives is
+`\\frac` rather than `\frac` — which the engine reads as a line break followed by the letters
+`frac`. `normalizedLatex` collapses that, and both the renderer and `validate()` already work from
+this form:
 
 ```swift
 let raw = MathExpression(#"\\frac{1}{2}"#)
 print(raw.normalizedLatex)  // → \frac{1}{2}
 ```
 
-### ストリーミング LLM 出力に対応する
+## Keeping up with a stream
 
-部分的なストリームを受信する場合は `completeUnterminated` を有効にする:
+When the text is still arriving, turn on `completeUnterminated` so an unfinished expression is
+still segmented as math:
 
 ```swift
 let segmenter = MathSegmenter(options: .init(completeUnterminated: true))
-// 閉じ $$ がまだ届いていない — それでも .math セグメントを生成する:
+// The closing $$ has not arrived — this still yields a .math segment:
 let partial = segmenter.segments(in: "Energy: $$E = mc^2")
 ```
+
+Leave it off for text that is already complete, or a stray `$` will swallow the tail of the input.

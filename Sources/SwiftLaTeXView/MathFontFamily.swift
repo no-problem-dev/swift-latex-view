@@ -1,28 +1,29 @@
 internal import SwiftMath
 
-/// 数式の組版に使う OpenType MATH フォント。
+/// The OpenType MATH fonts available for typesetting.
 ///
-/// 全フォントは組版エンジンに同梱しており、アプリ側でのフォント登録は不要。
+/// All of them ship inside the typesetting engine, so an app never has to register a font or
+/// bundle a resource to use one.
 public enum MathFontFamily: String, Sendable, Equatable, Hashable, CaseIterable {
-    /// Latin Modern Math — 伝統的な TeX スタイル。デフォルト。
+    /// Latin Modern Math — the traditional TeX look, and what you get unless a style says otherwise.
     case latinModern
-    /// KP Math Light。
+    /// KP Math Light — a serif face at a lighter weight than Latin Modern.
     case kpLight
-    /// KP Math Sans。
+    /// KP Math Sans — the sans-serif companion to ``kpLight``.
     case kpSans
-    /// XITS Math（Times 系）。
+    /// XITS Math — Times-metric, for math set alongside a Times-like body font.
     case xits
-    /// TeX Gyre Termes Math（Times 系）。
+    /// TeX Gyre Termes Math — the other Times-metric option, from the TeX Gyre family.
     case termes
-    /// Asana Math（Palatino 系）。
+    /// Asana Math — Palatino-metric, for math set alongside a Palatino-like body font.
     case asana
-    /// Euler Math（直立カリグラフィ体）。
+    /// Euler Math — upright calligraphic; distinctive rather than neutral.
     case euler
-    /// Fira Math（サンセリフ体）。
+    /// Fira Math — sans-serif, the one to reach for with a sans-serif UI.
     case fira
-    /// Noto Sans Math。
+    /// Noto Sans Math — sans-serif with unusually broad symbol coverage.
     case notoSans
-    /// Libertinus Math。
+    /// Libertinus Math — serif, derived from Linux Libertine.
     case libertinus
 }
 

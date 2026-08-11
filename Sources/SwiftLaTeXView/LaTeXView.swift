@@ -2,14 +2,15 @@ import SwiftUI
 import DesignSystem
 import LaTeXCore
 
-/// LaTeX 数式を描画する SwiftUI ビュー。
+/// A SwiftUI view that typesets LaTeX math.
 ///
-/// 色・サイズ・数式フォントは DesignSystem 環境と適用中の ``MathStyle`` から取得する。
+/// Color, size, and math font are read from the surrounding DesignSystem environment and the
+/// ``MathStyle`` in effect, so math follows the app's theme without being configured at each site.
 ///
 /// ```swift
 /// LaTeXView(#"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"#)
 ///
-/// // インライン数式 — テキストのベースラインに揃える:
+/// // Inline math — aligned to the surrounding text baseline:
 /// HStack(alignment: .firstTextBaseline) {
 ///     Text("where")
 ///     LaTeXView(#"a \neq 0"#, mode: .inline)
@@ -17,33 +18,35 @@ import LaTeXCore
 /// }
 /// ```
 ///
-/// LaTeX ソースがパースできない場合（LLM の出力が途中で切れた場合など）は、
-/// モノスペースフォントでスタイルのエラー色を使って生ソースを表示するフォールバックに切り替わる。
+/// Source that cannot be parsed — a truncated LLM response, say — falls back to showing the raw
+/// string in a monospaced font tinted with the style's error color. There is no crash and no
+/// empty view, but there is also no error to inspect: call `MathExpression.validate()` first
+/// if the caller needs to know why.
 public struct LaTeXView: View {
 
-    /// 描画する数式。
+    /// The expression to typeset, kept verbatim — nothing is parsed until the body is evaluated.
     public let expression: MathExpression
 
     @Environment(\.mathStyle) private var style
     @Environment(\.colorPalette) private var palette
     @Environment(\.spacingScale) private var spacing
 
-    /// 既存の ``MathExpression`` からビューを生成する。
+    /// Creates a view for an expression you already hold.
     ///
-    /// ``MathSegmenter`` でテキストと数式を分割した後など、
-    /// 既に ``MathExpression`` を持っている場合に使用する。
+    /// This is the initializer to use after splitting prose with `MathSegmenter`, which hands
+    /// back `MathExpression` values with their delimiters already stripped.
     ///
-    /// - Parameter expression: 描画する数式。
+    /// - Parameter expression: The expression to typeset.
     public init(_ expression: MathExpression) {
         self.expression = expression
     }
 
-    /// LaTeX 文字列からビューを生成する。
+    /// Creates a view from a LaTeX string.
     ///
     /// - Parameters:
-    ///   - latex: デリミタを含まない LaTeX ソース。たとえば `#"\frac{1}{2}"#`。
-    ///     `"$\frac{1}{2}$"` のようにデリミタを含めると、デリミタが文字として描画される。
-    ///   - mode: レイアウトモード。デフォルトは ``MathMode/display``。
+    ///   - latex: LaTeX source **without** delimiters, for example `#"\frac{1}{2}"#`.
+    ///     Leaving the delimiters in — `"$\frac{1}{2}$"` — typesets them as literal characters.
+    ///   - mode: The layout mode. Defaults to `MathMode.display`.
     public init(_ latex: String, mode: MathMode = .display) {
         self.expression = MathExpression(latex, mode: mode)
     }
@@ -88,9 +91,11 @@ public struct LaTeXView: View {
     }
 }
 
-/// コンテナより幅広のディスプレイ数式を、周囲のレイアウトを崩さずに横スクロールで表示するビュー。
-/// KaTeX の `overflow-x: auto` に相当する。
-/// 収まる場合は中央揃えにし、バウンスを無効化してスクロールビューを静止させる。
+/// Lets display math that is wider than its container scroll horizontally, instead of forcing the
+/// surrounding layout to grow — the equivalent of KaTeX's `overflow-x: auto`.
+///
+/// Math that does fit stays centered, and bounce is switched off so the scroll view sits still
+/// rather than rubber-banding under a formula that has nowhere to go.
 private struct ScrollableDisplayMath: View {
     let image: Image
     let padding: CGFloat
@@ -116,22 +121,23 @@ private struct ScrollableDisplayMath: View {
 
 extension LaTeXView {
 
-    /// インライン数式を `Text` のセグメントとして描画し、テキスト連結に使えるようにする。
+    /// Typesets inline math as a `Text` segment so it can be concatenated with other text.
     ///
-    /// 数式を複数セグメントを連結した `Text` コンポジション（Markdown 段落など）の中に
-    /// 埋め込みたい場合に使用する。`View` を埋め込めない文脈で有用。
-    /// タイプセット時の descent を使って、周囲のテキストのベースラインに揃える。
+    /// Reach for this where a `View` cannot go — inside a `Text` composition built by joining
+    /// segments, such as a rendered Markdown paragraph. The typeset descent is applied as a
+    /// baseline offset so the formula sits on the same line as the words around it.
     ///
-    /// ``LaTeXView`` イニシャライザと異なり、このメソッドは環境非依存である。
-    /// 周囲の ``SwiftUICore/EnvironmentValues/mathStyle`` やカラーパレットを参照しない。
-    /// 周囲のテキストに合わせた `fontFamily`・`fontSize`・`color` を明示的に渡す必要がある。
+    /// Unlike the ``LaTeXView`` initializers this method reads nothing from the environment:
+    /// neither ``SwiftUICore/EnvironmentValues/mathStyle`` nor the color palette. Pass
+    /// `fontFamily`, `fontSize`, and `color` that match the surrounding text, or the math will
+    /// visibly disagree with it.
     ///
     /// - Parameters:
-    ///   - latex: デリミタを含まない LaTeX ソース。
-    ///   - fontFamily: 数式フォント。デフォルトは Latin Modern。
-    ///   - fontSize: ポイントサイズ。周囲のテキストのサイズに合わせること。
-    ///   - color: テキストの色。デザインシステムのパレットからの色解決は呼び出し側の責務。
-    /// - Returns: `Text` セグメント。LaTeX のパースに失敗した場合は `nil`。
+    ///   - latex: LaTeX source without delimiters.
+    ///   - fontFamily: The math font. Defaults to Latin Modern.
+    ///   - fontSize: Point size. Match the size of the surrounding text.
+    ///   - color: The text color. Resolving it from a design system palette is the caller's job.
+    /// - Returns: A `Text` segment, or `nil` if the LaTeX could not be parsed.
     @MainActor
     public static func inlineText(
         _ latex: String,
