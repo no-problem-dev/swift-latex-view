@@ -26,6 +26,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "display-quadratic",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
@@ -40,6 +41,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "display-summation",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
@@ -54,6 +56,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "display-matrix",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
@@ -74,6 +77,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "inline-baseline",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
@@ -90,6 +94,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "error-fallback",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
@@ -114,6 +119,7 @@ struct LaTeXViewSnapshotTests {
             componentName: "LaTeXView",
             stateName: "custom-style",
             size: snapshotSize,
+            disableAnimations: false,
             file: #filePath, line: #line
         )
     }
