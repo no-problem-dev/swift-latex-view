@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-11
+
 ### Changed
 
 - Doc comments, the DocC catalogs, and this file are now English. No code changed.

@@ -53,7 +53,7 @@ LaTeXView(#"a \neq 0"#, mode: .inline)
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/no-problem-dev/swift-latex-view.git", .upToNextMinor(from: "0.3.0"))
+    .package(url: "https://github.com/no-problem-dev/swift-latex-view.git", .upToNextMinor(from: "0.4.0"))
 ]
 ```
 
