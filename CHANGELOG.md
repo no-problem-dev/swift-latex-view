@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING** — raised the swift-design-system pin to 5.0.0. `MathStyle` requires DesignSystem's
+  `ColorPalette` and `SpacingScale`, so DesignSystem's major is this package's. No source changes
+  were needed; an app on DesignSystem 5.x can now use this package, which 0.5.0 (4.x only) blocked.
+
 ## [0.5.0] - 2026-08-11
 
 ### Changed
