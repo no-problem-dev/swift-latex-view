@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-28
+
 ### Changed
 
 - **BREAKING** — raised the swift-design-system pin to 5.0.0. `MathStyle` requires DesignSystem's
