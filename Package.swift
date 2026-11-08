@@ -22,7 +22,6 @@ let package = Package(
         .package(url: "https://github.com/mgriebling/SwiftMath.git", .upToNextMajor(from: "1.7.0")),
         .package(url: "https://github.com/no-problem-dev/swift-design-system.git", from: "5.0.0"),
         .package(url: "https://github.com/no-problem-dev/swift-visual-testing.git", .upToNextMajor(from: "3.0.0")),
-        .package(url: "https://github.com/apple/swift-docc-plugin.git", .upToNextMajor(from: "1.4.0"))
     ],
     targets: [
         .target(
