@@ -44,7 +44,7 @@ LaTeXView(#"a \neq 0"#, mode: .inline)
 
 ## ドキュメント
 
-[API リファレンスとガイド](https://no-problem-dev.github.io/swift-latex-view/documentation/swiftlatexview/) —
+[API リファレンスとガイド](Sources/SwiftLaTeXView/Documentation.docc) —
 文中からの数式抽出、ストリーム出力の扱い、`MathStyle` の書き方。
 
 ## インストール
